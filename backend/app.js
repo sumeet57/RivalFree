@@ -6,6 +6,7 @@ import { configureSession } from "./config/session.js";
 import limiter from "./middlewares/limiter.middleware.js";
 import cookieParser from "cookie-parser";
 import projectRouter from "./routes/project.route.js";
+import featureRouter from "./routes/feature.route.js";
 
 
 const app = express();
@@ -33,6 +34,7 @@ app.get("/health", (req, res) => {
 // routes
 app.use("/api/auth", authRouter);
 app.use("/api/project",projectRouter);
+app.use("/api/feature", featureRouter);
 
 // 404 handler
 app.use((req, res, next) => {
