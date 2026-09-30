@@ -5,6 +5,15 @@ import {
   generateQueryPlan,
   runParallelSynthesis,
 } from "../services/gemini.service.js";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
+import { env } from "../config/env.js";
+
+const llm = new ChatGoogleGenerativeAI({
+  model: "gemini-2.5-flash-lite",
+  apiKey: env.GEMINI_API_KEY,
+  temperature: 0.5,
+});
 
 const generateCacheHash = (prompt) => {
   return crypto.createHash("sha256").update(prompt.trim().toLowerCase()).digest("hex");
@@ -103,9 +112,75 @@ export const registerProjectHandlers = (io, socket) => {
         isCached: false,
       });
     } catch (error) {
-      console.error("Radar Analysis Error:", error);
+      console.error("Project Analysis Error:", error);
       socket.emit("analysis_error", {
-        message: error.message || "Failed to complete radar analysis",
+        message: error.message || "Failed to complete project analysis",
+      });
+    }
+  });
+
+  socket.on("chat_project_discussion", async (payload) => {
+    try {
+      const { projectId, message, chatHistory = [] } = payload;
+
+      if (!projectId || !message) {
+        socket.emit("chat_error", { message: "Project ID and message are required" });
+        return;
+      }
+
+      const project = await Project.findById(projectId);
+      if (!project) {
+        socket.emit("chat_error", { message: "Project not found" });
+        return;
+      }
+
+      const projectContext = `
+Project Name: ${project.name}
+About: ${project.about || "N/A"}
+Positioning Strategy/Summary: ${project.summary || "N/A"}
+Analysis History: ${JSON.stringify(project.history || [])}
+`;
+
+      const formattedMessages = [
+        new SystemMessage(
+          `You are RivalFree Assistant, an expert AI advisor helping the user refine, understand, and discuss their project strategy based on their generated competitive analysis.
+Answer questions directly and offer actionable advice based on the project context provided below.
+DO NOT attempt to overwrite or alter the project summary or historical analysis data.
+
+Project Context:
+${projectContext}`
+        ),
+      ];
+
+      chatHistory.forEach((msg) => {
+        if (msg.sender === "user") {
+          formattedMessages.push(new HumanMessage(msg.text));
+        } else if (msg.sender === "ai") {
+          formattedMessages.push(new AIMessage(msg.text));
+        }
+      });
+
+      formattedMessages.push(new HumanMessage(message));
+
+      socket.emit("chat_response_start");
+
+      const responseStream = await llm.stream(formattedMessages);
+      let fullResponse = "";
+
+      for await (const chunk of responseStream) {
+        const textChunk = chunk.content;
+        fullResponse += textChunk;
+
+        socket.emit("chat_response_chunk", { chunk: textChunk });
+      }
+
+      socket.emit("chat_response_complete", {
+        reply: fullResponse,
+      });
+    } catch (error) {
+      console.error("Chat Discussion Error:", error);
+      socket.emit("chat_error", {
+        message: error.message || "Failed to process message",
       });
     }
   });

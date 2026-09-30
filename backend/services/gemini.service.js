@@ -2,10 +2,11 @@ import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { JsonOutputParser } from "@langchain/core/output_parsers";
 import { ApiError } from "../utils/api-response.js";
+import { env } from "../config/env.js";
 
 const llm = new ChatGoogleGenerativeAI({
-  model: "gemini-2.5-flash",
-  apiKey: process.env.GEMINI_API_KEY,
+  model: "gemini-2.5-flash-lite",
+  apiKey: env.GEMINI_API_KEY,
   temperature: 0.2,
 });
 

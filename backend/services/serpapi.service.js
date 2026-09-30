@@ -1,12 +1,13 @@
 import { getJson } from "serpapi";
 import { ApiError } from "../utils/api-response.js";
+import { env } from "../config/env.js";
 
 export const executeSerpApiSearch = async (query) => {
   try {
     const response = await getJson({
       engine: "google",
       q: query,
-      api_key: process.env.SERPAPI_API_KEY,
+      api_key: env.SERPAPI_API_KEY,
     });
 
     return {

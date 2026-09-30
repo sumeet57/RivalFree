@@ -1,8 +1,9 @@
 import { Server } from "socket.io";
-import env from "../config/env.js";
+import { env } from "../config/env.js";
 import socketAuthMiddleware from "../middlewares/socket.middleware.js";
-import session from "../config/session.js";
 import { registerProjectHandlers } from "./project.handler.js";
+import { registerFeatureHandlers } from "./feature.handler.js";
+import { configureSession } from "../config/session.js";
 
 console.log("Initializing socket server with CORS origin:", env.CLIENT_URL);
 
@@ -14,13 +15,14 @@ const initializeSocket = (server) => {
     },
   });
 
-  io.engine.use(session);
+  io.engine.use(configureSession());
   io.use(socketAuthMiddleware);
 
   io.on("connection", (socket) => {
     console.log(`User connected: ${socket.user.id}`);
 
     registerProjectHandlers(io, socket);
+    registerFeatureHandlers(io, socket);
 
     socket.on("disconnect", () => {
       console.log(`User disconnected: ${socket.user.id}`);
