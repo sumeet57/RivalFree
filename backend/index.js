@@ -9,6 +9,6 @@ await connectDatabase();
 const server = http.createServer(app);
 initializeSocket(server);
 
-app.listen(env.PORT, () => {
+server.listen(env.PORT, () => {
     console.log(`Server is running on port ${env.PORT}`);
 });

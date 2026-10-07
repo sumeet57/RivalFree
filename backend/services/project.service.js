@@ -12,7 +12,7 @@ export const createProjectService = async (projectData) => {
 };
 
 export const geTProjectsByUserService = async (userId) => {
-    const projects = await Project.find({ user: userId }).populate("features");
+    const projects = await Project.find({ user: userId });
 
     if(!projects) {
         throw ApiError(404, "No projects found for the user");
@@ -21,7 +21,7 @@ export const geTProjectsByUserService = async (userId) => {
 };
 
 export const getProjectByIdService = async (projectId) => {
-    const project = await Project.findById(projectId).populate("features");
+    const project = await Project.findById(projectId);
 
     if(!project) {
         throw ApiError(404, "Project not found");

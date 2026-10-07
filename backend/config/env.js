@@ -11,4 +11,5 @@ export const env = {
     SESSION_SECRET: process.env.SESSION_SECRET || "your_default_session_secret",
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || "your_default_gemini_api_key",
     SERPAPI_API_KEY: process.env.SERPAPI_API_KEY || "your_default_serpapi_api_key",
+    CLIENT_URL: process.env.CLIENT_URL || "http://localhost:5173",
 };

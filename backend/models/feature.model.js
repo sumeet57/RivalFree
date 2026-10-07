@@ -30,6 +30,10 @@ const featureSchema = new mongoose.Schema({
         ref: "User",
         required: true,
     },
+    chatHistory: [{
+    role: { type: String, enum: ["user", "assistant"], required: true },
+    message: { type: String, required: true }
+  }]
 }, { timestamps: true });
 
 const Feature = mongoose.model("Feature", featureSchema);

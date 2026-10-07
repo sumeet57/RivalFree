@@ -33,6 +33,17 @@ const projectSchema = new mongoose.Schema({
     features: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Feature",
+    }],
+    chatHistory: [{
+        role: {
+            type: String,
+            enum: ["user", "assistant"],
+            required: true,
+        },
+        message: {
+            type: String,
+            required: true,
+        },
     }]
 }, { timestamps: true });
 

@@ -23,8 +23,9 @@
     "google-auth-library": "^11.0.0",
     "joi": "^18.2.9",
     "mongoose": "^9.10.2",
-    "nodemon": "^3.1.14",
+    "nodemon": "^1.14.10",
     "serpapi": "^2.2.1",
-    "socket.io": "^4.8.4"
+    "socket.io": "^4.8.4",
+    "zod": "^4.6.5"
   }
 }

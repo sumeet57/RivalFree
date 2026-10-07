@@ -33,8 +33,8 @@ app.get("/health", (req, res) => {
 
 // routes
 app.use("/api/auth", authRouter);
-app.use("/api/project",projectRouter);
-app.use("/api/feature", featureRouter);
+app.use("/api/projects",projectRouter);
+app.use("/api/features", featureRouter);
 
 // 404 handler
 app.use((req, res, next) => {
