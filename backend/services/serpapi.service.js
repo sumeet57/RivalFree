@@ -9,24 +9,34 @@ export const executeSerpApiSearch = async (queryInput) => {
     if (typeof queryInput === "string") {
       searchQuery = queryInput;
     } else if (typeof queryInput === "object" && queryInput !== null) {
-      searchQuery = queryInput.query || queryInput.searchQuery || queryInput.q || "";
+      searchQuery =
+        queryInput.query || queryInput.searchQuery || queryInput.q || "";
     }
 
     searchQuery = searchQuery.trim();
 
     if (!searchQuery) {
-      throw new ApiError(400, `Search query string is missing or invalid. Received: ${JSON.stringify(queryInput)}`);
+      throw new ApiError(
+        400,
+        `Search query string is missing or invalid. Received: ${JSON.stringify(queryInput)}`,
+      );
     }
 
     if (!env.SERPAPI_API_KEY) {
-      throw new ApiError(500, "SERPAPI_API_KEY environment variable is not defined");
+      throw new ApiError(
+        500,
+        "SERPAPI_API_KEY environment variable is not defined",
+      );
     }
 
     const response = await getJson({
       engine: "google",
       q: searchQuery,
+      num: 10,
+      no_cache: false,
+      async: false,
       api_key: env.SERPAPI_API_KEY,
-      timeout: 60000,
+      timeout: 30000,
     });
 
     if (response.error) {
@@ -34,15 +44,17 @@ export const executeSerpApiSearch = async (queryInput) => {
     }
 
     return {
-      organicResults: response.organic_results?.slice(0, 10).map((item) => ({
-        title: item.title,
-        snippet: item.snippet,
-        link: item.link,
-      })) || [],
+      organicResults:
+        response.organic_results?.slice(0, 10).map((item) => ({
+          title: item.title,
+          snippet: item.snippet,
+          link: item.link,
+        })) || [],
       relatedSearches: response.related_searches || [],
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : JSON.stringify(error);
+    const message =
+      error instanceof Error ? error.message : JSON.stringify(error);
     throw new ApiError(500, `SerpApi execution failed: ${message}`);
   }
 };

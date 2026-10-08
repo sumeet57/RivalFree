@@ -1,54 +1,64 @@
 import mongoose from "mongoose";
 
 const limitSchema = new mongoose.Schema({
-    projectLimit: {
-        type: Number,
-        default: 3,
-    },
-    featureLimit: {
-        type: Number,
-        default: 10,
-    },
-    aiLimit: {
-        type: Number,
-        default: 100, 
-    },
-})
+  projectLimit: {
+    type: Number,
+    default: 3,
+  },
+  featureLimit: {
+    type: Number,
+    default: 10,
+  },
+  aiLimit: {
+    type: Number,
+    default: 100,
+  },
+});
 
-const userSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema(
+  {
     name: {
-        type: String,
-        required: true,
+      type: String,
+      required: true,
     },
     email: {
-        type: String,
-        required: true,
-        unique: true,
-        email: true,
+      type: String,
+      required: true,
+      unique: true,
     },
     avatar: {
-        type: String,
-        default: "",
+      type: String,
+      default: "",
     },
     googleId: {
-        type: String,
-        required: true,
-        unique: true,
+      type: String,
+      required: false,
+      unique: true,
+      sparse: true,
+    },
+    isGuest: {
+      type: Boolean,
+      default: false,
     },
     limits: {
-        type: limitSchema,
-        default: () => ({}),
+      type: limitSchema,
+      default: () => ({}),
     },
-
-    projects: [{
+    projects: [
+      {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Project",
-    }],
-    features: [{
+      },
+    ],
+    features: [
+      {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Feature",
-    }]
-}, { timestamps: true });
+      },
+    ],
+  },
+  { timestamps: true },
+);
 
 const User = mongoose.model("User", userSchema);
 

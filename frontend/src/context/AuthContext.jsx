@@ -1,4 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import * as authApi from "../api/auth.api";
 
 const AuthContext = createContext(null);
@@ -22,14 +29,19 @@ export function AuthProvider({ children }) {
     setUser(await authApi.getMe());
   }, []);
 
+  const loginAsGuest = useCallback(async (email) => {
+    await authApi.guestLogin(email);
+    setUser(await authApi.getMe());
+  }, []);
+
   const logout = useCallback(async () => {
     await authApi.logout();
     setUser(null);
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, loginWithGoogle, logout }),
-    [user, loading, loginWithGoogle, logout]
+    () => ({ user, loading, loginWithGoogle, loginAsGuest, logout }),
+    [user, loading, loginWithGoogle, loginAsGuest, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
