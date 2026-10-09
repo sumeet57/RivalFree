@@ -17,6 +17,13 @@ export const handleGoogleAuth = asyncHandler(async (req, res) => {
 
   req.session.userId = user._id;
 
+  await new Promise((resolve, reject) => {
+    req.session.save((err) => {
+      if (err) return reject(new ApiError(500, "Failed to save session"));
+      resolve();
+    });
+  });
+
   const userData = {
     id: user._id,
     name: user.name,
@@ -32,6 +39,13 @@ export const handleGuestAuth = asyncHandler(async (req, res) => {
   const user = await guestAuthService(email);
 
   req.session.userId = user._id;
+
+  await new Promise((resolve, reject) => {
+    req.session.save((err) => {
+      if (err) return reject(new ApiError(500, "Failed to save session"));
+      resolve();
+    });
+  });
 
   const userData = {
     id: user._id,

@@ -8,39 +8,43 @@ import cookieParser from "cookie-parser";
 import projectRouter from "./routes/project.route.js";
 import featureRouter from "./routes/feature.route.js";
 
-
 const app = express();
 
-app.use(cors({
+app.set("trust proxy", 1);
+
+app.use(
+  cors({
     origin: env.CORS_ORIGIN,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
-}))
+  }),
+);
 
 app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true , limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
 app.use(configureSession());
 app.use(limiter);
 
 app.get("/", (req, res) => {
-    res.send("API is running...");
+  res.send("API is running...");
 });
 
 app.get("/health", (req, res) => {
-    res.status(200).json({ status: "ok", message: "Server is healthy", timestamp: new Date().toISOString() , uptime: process.uptime() });
+  res.status(200).json({
+    status: "ok",
+    message: "Server is healthy",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
 });
 
-// routes
 app.use("/api/auth", authRouter);
-app.use("/api/projects",projectRouter);
+app.use("/api/projects", projectRouter);
 app.use("/api/features", featureRouter);
 
-// 404 handler
 app.use((req, res, next) => {
-    res.status(404).json({ message: "Route not found, please check the URL." });
+  res.status(404).json({ message: "Route not found, please check the URL." });
 });
 
 export default app;
-
-
