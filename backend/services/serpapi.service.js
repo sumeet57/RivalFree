@@ -32,11 +32,11 @@ export const executeSerpApiSearch = async (queryInput) => {
     const response = await getJson({
       engine: "google",
       q: searchQuery,
-      num: 10,
+      num: 5,
       no_cache: false,
       async: false,
       api_key: env.SERPAPI_API_KEY,
-      timeout: 30000,
+      timeout: 60000,
     });
 
     if (response.error) {
@@ -45,7 +45,7 @@ export const executeSerpApiSearch = async (queryInput) => {
 
     return {
       organicResults:
-        response.organic_results?.slice(0, 10).map((item) => ({
+        response.organic_results?.slice(0, 5).map((item) => ({
           title: item.title,
           snippet: item.snippet,
           link: item.link,

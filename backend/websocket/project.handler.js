@@ -6,10 +6,14 @@ import {
   runParallelSynthesis,
 } from "../services/gemini.service.js";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
+import {
+  HumanMessage,
+  AIMessage,
+  SystemMessage,
+} from "@langchain/core/messages";
 import { env } from "../config/env.js";
+import User from "../models/user.model.js";
 
-console.log("Initializing ChatGoogleGenerativeAI with model:", "gemini-3.5-flash-lite", env.GEMINI_API_KEY);
 const llm = new ChatGoogleGenerativeAI({
   model: "gemini-3.5-flash-lite",
   apiKey: env.GEMINI_API_KEY,
@@ -17,118 +21,139 @@ const llm = new ChatGoogleGenerativeAI({
 });
 
 const generateCacheHash = (prompt) => {
-  return crypto.createHash("sha256").update(prompt.trim().toLowerCase()).digest("hex");
+  return crypto
+    .createHash("sha256")
+    .update(prompt.trim().toLowerCase())
+    .digest("hex");
 };
 
 export const registerProjectHandlers = (io, socket) => {
-socket.on("create_project_analysis", async (payload) => {
-  try {
-    const { name, about, link } = payload;
-    const userId = socket.user?._id || socket.user?.id;
+  socket.on("create_project_analysis", async (payload) => {
+    try {
+      const { name, about, link } = payload;
+      const userId = socket.user?._id || socket.user?.id;
 
-    if (!userId) {
-      socket.emit("analysis_error", { message: "Unauthorized user" });
-      return;
-    }
+      const user = await User.findById(userId);
+      if (!user) {
+        socket.emit("analysis_error", { message: "Unauthorized user" });
+        return;
+      }
+      if (user.projects.length >= user.limits.projectLimit) {
+        socket.emit("analysis_error", {
+          message:
+            "Project limit reached. Upgrade your plan to create more projects.",
+        });
+        return;
+      }
 
-    if (!name) {
-      socket.emit("analysis_error", { message: "Project name is required" });
-      return;
-    }
+      if (!name) {
+        socket.emit("analysis_error", { message: "Project name is required" });
+        return;
+      }
 
-    const inputPrompt = `${name} ${about || ""} ${link || ""}`.trim();
-    const hash = generateCacheHash(inputPrompt);
+      const inputPrompt = `${name} ${about || ""} ${link || ""}`.trim();
+      const hash = generateCacheHash(inputPrompt);
 
-    socket.emit("agent_status", {
-      step: "CACHE_CHECK",
-      message: "Checking database cache for prior market analysis...",
-    });
-
-    let cachedProject = await Project.findOne({
-      user: userId,
-      "history.hash": hash,
-    });
-
-    if (cachedProject) {
       socket.emit("agent_status", {
-        step: "CACHE_HIT",
-        message: "Cache hit! Retrieving saved market matrix...",
+        step: "CACHE_CHECK",
+        message: "Checking database cache for prior market analysis...",
       });
+
+      let cachedProject = await Project.findOne({
+        user: userId,
+        "history.hash": hash,
+      });
+
+      if (cachedProject) {
+        socket.emit("agent_status", {
+          step: "CACHE_HIT",
+          message: "Cache hit! Retrieving saved market matrix...",
+        });
+
+        socket.emit("analysis_complete", {
+          project: cachedProject,
+          isCached: true,
+        });
+        return;
+      }
+
+      socket.emit("agent_status", {
+        step: "QUERY_PLANNING",
+        message: "Agent 1: Optimizing search parameters and site operators...",
+      });
+
+      const queryPlan = await generateQueryPlan(inputPrompt);
+
+      const searchQueryStr =
+        typeof queryPlan === "string"
+          ? queryPlan
+          : queryPlan?.query || queryPlan?.searchQuery || inputPrompt;
+
+      socket.emit("agent_status", {
+        step: "LIVE_SEARCH",
+        message: `Agent 1: Executing live radar scan via SerpApi for '${searchQueryStr}'...`,
+      });
+
+      const serpResults = await executeSerpApiSearch(searchQueryStr);
+
+      socket.emit("agent_status", {
+        step: "PARALLEL_SYNTHESIS",
+        message:
+          "Agent 2 & 3: Mapping competitor threats and isolating feature voids in parallel...",
+      });
+
+      const synthesisResult = await runParallelSynthesis(
+        serpResults,
+        inputPrompt,
+      );
+
+      socket.emit("agent_status", {
+        step: "SAVING_RESULTS",
+        message:
+          "Agent 4: Compiling executive roadmap and persisting project data...",
+      });
+
+      const newProject = await Project.create({
+        name,
+        about,
+        link,
+        summary: synthesisResult?.roadmap?.positioningStrategy || "",
+        history: [
+          {
+            hash,
+            queryPlan,
+            competitors: synthesisResult.competitors,
+            voids: synthesisResult.voids,
+            roadmap: synthesisResult.roadmap,
+            createdAt: new Date(),
+          },
+        ],
+        user: userId,
+      });
+      user.projects.push(newProject._id);
+      await user.save();
 
       socket.emit("analysis_complete", {
-        project: cachedProject,
-        isCached: true,
+        project: newProject,
+        analysis: synthesisResult,
+        isCached: false,
       });
-      return;
+    } catch (error) {
+      console.error("Project Analysis Error:", error);
+      socket.emit("analysis_error", {
+        message: error.message || "Failed to complete project analysis",
+      });
     }
+  });
 
-    socket.emit("agent_status", {
-      step: "QUERY_PLANNING",
-      message: "Agent 1: Optimizing search parameters and site operators...",
-    });
-
-    const queryPlan = await generateQueryPlan(inputPrompt);
-
-    const searchQueryStr = typeof queryPlan === "string" 
-      ? queryPlan 
-      : (queryPlan?.query || queryPlan?.searchQuery || inputPrompt);
-
-    socket.emit("agent_status", {
-      step: "LIVE_SEARCH",
-      message: `Agent 1: Executing live radar scan via SerpApi for '${searchQueryStr}'...`,
-    });
-
-    const serpResults = await executeSerpApiSearch(searchQueryStr);
-
-    socket.emit("agent_status", {
-      step: "PARALLEL_SYNTHESIS",
-      message: "Agent 2 & 3: Mapping competitor threats and isolating feature voids in parallel...",
-    });
-
-    const synthesisResult = await runParallelSynthesis(serpResults, inputPrompt);
-
-    socket.emit("agent_status", {
-      step: "SAVING_RESULTS",
-      message: "Agent 4: Compiling executive roadmap and persisting project data...",
-    });
-
-    const newProject = await Project.create({
-      name,
-      about,
-      link,
-      summary: synthesisResult?.roadmap?.positioningStrategy || "",
-      history: [
-        {
-          hash,
-          queryPlan,
-          competitors: synthesisResult.competitors,
-          voids: synthesisResult.voids,
-          roadmap: synthesisResult.roadmap,
-          createdAt: new Date(),
-        },
-      ],
-      user: userId,
-    });
-
-    socket.emit("analysis_complete", {
-      project: newProject,
-      analysis: synthesisResult,
-      isCached: false,
-    });
-  } catch (error) {
-    console.error("Project Analysis Error:", error);
-    socket.emit("analysis_error", {
-      message: error.message || "Failed to complete project analysis",
-    });
-  }
-});
-
- socket.on("chat_project_discussion", async (payload) => {
+  socket.on("chat_project_discussion", async (payload) => {
     try {
       const { projectId, message } = payload;
 
       if (!projectId || !message) {
-        socket.emit("chat_error", { message: "Project ID and message are required" });
+        socket.emit("chat_error", {
+          message: "Project ID and message are required",
+        });
         return;
       }
 
@@ -147,12 +172,22 @@ Analysis History: ${JSON.stringify(project.history || [])}
 
       const formattedMessages = [
         new SystemMessage(
-          `You are RivalFree Assistant, an expert AI advisor helping the user refine, understand, and discuss their project strategy based on their generated competitive analysis.
-Answer questions directly and offer actionable advice based on the project context provided below.
-DO NOT attempt to overwrite or alter the project summary or historical analysis data.
+          `You are RivalFree Assistant, an elite AI business strategist and technical co-pilot. Your job is to help the user analyze, refine, and plan their product strategy based strictly on the generated market intelligence provided in the Context.
 
-Project Context:
-${projectContext}`
+### STRICT OPERATIONAL BOUNDARIES & ANTI-HALLUCINATION RULES:
+1. GROUND TRUTH PRIMACY: Base all factual assertions, competitor details, feature gaps, and strategic advice ONLY on the provided Project Context.
+2. TRANSPARENT UNCERTAINTY: If the user asks about a competitor, market metric, or technical detail NOT present in the Context or verifiable SERP history, state clearly: "That specific detail isn't in your generated radar data." Then, provide reasonable strategic reasoning marked explicitly as a general hypothesis.
+3. NO FABRICATED DATA: Never invent fake competitors, non-existent pricing models, fake user reviews, or unverified market statistics.
+4. READ-ONLY INTEGRITY: You are a advisory partner. You CANNOT mutate, rewrite, or overwrite project summaries or stored database records.
+5. CONCISE & ACTIONABLE: Deliver direct, high-density strategic insights without conversational fluff or meta-announcements.
+
+### OUTPUT FORMATTING & STYLE:
+- Use inline bolding for key concepts, metrics, and actionable steps.
+- Present strategic comparisons or step-by-step implementations using concise bullet points or numbered lists.
+- Keep the tone professional, sharp, and founder-focused.
+
+### PROJECT CONTEXT:
+${projectContext}`,
         ),
       ];
 

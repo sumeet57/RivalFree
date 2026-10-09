@@ -11,7 +11,7 @@ const projectRouter = Router();
 projectRouter.use(isAuthenticated);
 
 projectRouter.post("/", createProject);
-projectRouter.get("/", getProjectsByUser);
-projectRouter.get("/:projectId", getProjectById);
+projectRouter.get("/", isAuthenticated, getProjectsByUser);
+projectRouter.get("/:projectId", isAuthenticated, getProjectById);
 
 export default projectRouter;
